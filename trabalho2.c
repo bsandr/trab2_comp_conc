@@ -27,8 +27,8 @@ void imprimeBuffer(int n) {
 }
 
 void *produtora(void *arg) {
-    int *id = (int *) arg;
-    printf("Sou a thread produtora %d\n", *id);
+    long int id = (long int) arg;
+    printf("Sou a thread produtora %ld\n", id);
     static int in = 0;
     //lê o arquivo
     //....
@@ -48,12 +48,20 @@ void *produtora(void *arg) {
     imprimeBuffer(5);
 }
 
-void *consumidora(void *arg) {
-    int *id = (int *) arg;
-    printf("Sou a thread consumidora %d\n", *id);
+void *consumidora (void *arg) {
+    long int id = (long int) arg;
+    printf("Sou a thread consumidora %ld\n", id);
+    static int out = 0;
+    while (1) {
+        printf("Thread %ld chegou no while\n", id);
+        sleep(5);
+    }
+    imprimeBuffer(id);
 }
 
 int main (int argc, char *argv[]) {
+    pthread_t *threads;
+    long int i;
 
      if(argc < 3) { 
         fprintf(stderr, "Digite: %s <num de threads consumidoras/escritoras> <tamanho do bloco> \n", argv[0]);
@@ -63,24 +71,22 @@ int main (int argc, char *argv[]) {
     C = atoi(argv[1]);
     N = atoi(argv[2]);
 
-    pthread_t threads[C + 1];
-    int *id[C];
-    int i;
-
-    //aloca espaço para os ids das threads
-    for(i = 0; i < C; i++) {
-        id[i] = malloc(sizeof(int));
-        if (id[i] == NULL){
-            exit(-1);
-        }
-        *id[i] = i+1;
-    }
-
     //aloca espaço para o buffer
     buffer = ( int *) malloc(sizeof(int) * N);
+    if(buffer == NULL) {
+        fprintf(stderr, "ERRO: Um erro ocorreu durante o malloc\n");
+        return 2;
+    }
 
     //inicializa o buffer
     inicializeBuffer(N);
+
+    //aloca espaço para identificados das threads
+    threads = (pthread_t *) malloc(sizeof(pthread_t) * (C + 1));
+    if (threads == NULL){
+        fprintf(stderr, "ERRO: Um erro ocorreu durante o malloc\n");
+        return 2;
+    }
 
     // Inicializa os semáforos
     sem_init(&fullSlot, 0, 0);
@@ -88,16 +94,19 @@ int main (int argc, char *argv[]) {
     sem_init(&bufferCheio, 0, 0);
 
     //criando threads produtoras
-    if(pthread_create(&threads[0], NULL, produtora, (void *) 0)){
+    if(pthread_create(threads + 0, NULL, produtora, (void *) 0)){
         exit(-1);
     }
 
     //criando threads consumidoras / escritoras
-    for(i = 1; i <= C; i++){
-        if(pthread_create(&threads[i], NULL, consumidora, (void *) id[i])){
+    for(i = 1; i < (C + 1); i++){
+        if(pthread_create(threads + i, NULL, consumidora, (void *) i)){
             exit(-1);
         }
     }
+
+    free(buffer);
+    free(threads);
 
     return 0;
 }
