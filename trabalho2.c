@@ -50,6 +50,7 @@ void *produtora(void *arg) {
 
         in = (in + 1) % 10;
         sem_post(&fullSlot);
+        printf("Thread produtora saiu da secao critica\n");
         count++;
     }
     printf("Thread produtora terminou\n");
@@ -68,6 +69,7 @@ void *consumidora (void *arg) {
         sem_wait(&fullSlot);
         sem_wait(&mutexCons);
         
+        printf("Thread consumidora entrou na secao critica\n");
         for(int i = 0; i < N; i++) {
             local_buffer[i] = buffer[out][i];
         }
@@ -76,6 +78,7 @@ void *consumidora (void *arg) {
 
         sem_post(&mutexCons);
         sem_post(&emptySlot);
+        printf("Thread consumidora saiu da secao critica\n");
 
         for(int i = 1; i < N; i++) {
             for(int j = 0; j < N - 1; j++) {
@@ -88,15 +91,19 @@ void *consumidora (void *arg) {
         }
 
         sem_wait(&mutexEscr);
-
+        printf("Thread escritora entrou na secao critica\n");
         for(int i = 0; i < N; i++) {
             fprintf(output, "%d ", local_buffer[i]);
         }
-
         fprintf(output, "\n");
 
         sem_post(&mutexEscr);
+        
+        count++;
+        printf("Thread escritora saiu da secao critica\n");
     }
+
+    pthread_exit(NULL);
     
 }
 
@@ -139,7 +146,7 @@ int main (int argc, char *argv[]) {
     sem_init(&fullSlot, 0, 0);
     sem_init(&emptySlot, 0, N);
     sem_init(&mutexCons, 0, 1);
-    sem_init(&mutexEscr, 0, 0);
+    sem_init(&mutexEscr, 0, 1);
 
     //obtém o número de elementos no arquivo
     entrada = fopen(filename_input, "r");
@@ -181,8 +188,8 @@ int main (int argc, char *argv[]) {
         }
     }
 
-    imprimeBuffer(N);
-
+    fclose(entrada);
+    fclose(saida);
 
     free(threads);
 
